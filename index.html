@@ -229,7 +229,20 @@ async function getToken() {
 
 function login() {
   saveHash();
-  msalApp.loginRedirect({ scopes: SCOPES, prompt: 'select_account' });
+  msalApp.loginRedirect({ scopes: SCOPES });
+}
+
+// Diagnose: was Microsoft beim Zurückkommen in die Adresse geschrieben hat
+const msalLog = [];
+function readAuthResponse() {
+  const raw = (location.hash || '').replace(/^#/, '') + '&' + (location.search || '').replace(/^\?/, '');
+  const q = new URLSearchParams(raw);
+  return { present: q.has('code') || q.has('error'), error: q.get('error'), desc: q.get('error_description') };
+}
+function diagBox(lines) {
+  return h('details', { open: true, style: 'margin-top:12px' },
+    h('summary', { class: 'hint', text: 'Technische Details (für Claude)' }),
+    h('pre', { style: 'white-space:pre-wrap;font-size:12px;color:var(--muted);max-height:260px;overflow:auto', text: lines.join('\n') }));
 }
 
 async function logout() {
@@ -1020,7 +1033,16 @@ async function deleteComment(id) {
    ============================================================ */
 document.getElementById('logoutBtn').addEventListener('click', logout);
 document.getElementById('newGalleryBtn').addEventListener('click', () => { location.href = BASE; });
-window.addEventListener('hashchange', () => location.reload());
+// Nur auf echte Galerie-Wechsel reagieren. Die Anmeldebibliothek ändert beim
+// Zurückkommen von Microsoft selbst die Adresse; das darf keinen Neustart auslösen.
+function watchHash() {
+  const bootHash = location.hash;
+  window.addEventListener('hashchange', () => {
+    const now = location.hash;
+    if (now === bootHash) return;
+    if (now === '' || now === '#demo' || now.startsWith('#g=')) location.reload();
+  });
+}
 
 async function boot() {
   if (location.hash === '#demo') {
@@ -1036,22 +1058,44 @@ async function boot() {
     return showMessage('Anmeldung nicht verfügbar',
       'Die Anmelde-Bibliothek von Microsoft konnte nicht geladen werden. Prüfe deine Internetverbindung, schalte ggf. einen Werbeblocker für diese Seite aus und lade neu.');
   }
+  const resp = readAuthResponse();
+  const diag = () => [
+    'Adresse: ' + BASE,
+    'Client-ID: ' + cfg.clientId.trim(),
+    'Antwort von Microsoft in der Adresse: ' + (resp.present ? 'ja' : 'nein'),
+    resp.error ? 'Fehler: ' + resp.error : null,
+    resp.desc ? 'Beschreibung: ' + resp.desc : null,
+    'Browser: ' + navigator.userAgent,
+    '--- Protokoll ---'
+  ].filter(Boolean).concat(msalLog);
+  const again = () => h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: login }, 'Noch einmal anmelden'));
   try {
     msalApp = new msal.PublicClientApplication({
       auth: { clientId: cfg.clientId.trim(), authority: 'https://login.microsoftonline.com/consumers', redirectUri: BASE, postLogoutRedirectUri: BASE, navigateToLoginRequestUrl: false },
-      cache: { cacheLocation: 'localStorage' }
+      cache: { cacheLocation: 'localStorage' },
+      system: { loggerOptions: { logLevel: msal.LogLevel.Info, piiLoggingEnabled: false,
+        loggerCallback: (lvl, msg) => { msalLog.push(msg.replace(/^\[[^\]]*\]\s*:\s*/, '')); if (msalLog.length > 40) msalLog.shift(); } } }
     });
     await msalApp.initialize();
     const res = await msalApp.handleRedirectPromise();
     if (res && res.account) msalApp.setActiveAccount(res.account);
   } catch (e) {
+    const lines = diag();
+    history.replaceState(null, '', BASE);
     restoreHash();
     return showMessage('Anmeldung fehlgeschlagen', (e.errorCode ? e.errorCode + ': ' : '') + (e.errorMessage || e.message || String(e)),
-      h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: login }, 'Noch einmal anmelden')));
+      h('div', null, again(), diagBox(lines)));
   }
   restoreHash();
   const acct = msalApp.getActiveAccount() || msalApp.getAllAccounts()[0];
   if (acct) msalApp.setActiveAccount(acct);
+  if (!acct && resp.present) {
+    const lines = diag();
+    history.replaceState(null, '', BASE);
+    return showMessage('Anmeldung nicht abgeschlossen',
+      resp.desc ? 'Microsoft meldet: ' + resp.desc : 'Microsoft hat dich zurückgeschickt, aber die Anmeldung wurde nicht abgeschlossen. Bitte schick Claude einen Screenshot dieser Seite.',
+      h('div', null, again(), diagBox(lines)));
+  }
   const g = parseGalleryHash();
   if (location.hash && location.hash.startsWith('#g=') && !g) {
     return showMessage('Ungültiger Galerie-Link', 'Der Link ist unvollständig oder beschädigt. Bitte kopiere ihn noch einmal vollständig.');
@@ -1066,7 +1110,7 @@ async function boot() {
   showSetup(api);
 }
 
-boot();
+boot().finally(watchHash);
 </script>
 </body>
 </html>
