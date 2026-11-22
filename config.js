@@ -3,5 +3,5 @@
 // Nur den Text zwischen den Anführungszeichen ersetzen, die Anführungszeichen bleiben stehen.
 
 window.GALERIE_CONFIG = {
-  clientId: "HIER-DEINE-CLIENT-ID"
+  clientId: "9c29cf44-9832-4806-9f04-85784810d662"
 };
