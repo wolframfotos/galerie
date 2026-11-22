@@ -176,10 +176,10 @@ function explain(err) {
   if (err.user) return err.message;
   const code = err.body && err.body.error && err.body.error.code;
   if (err.status === 401) return 'Die Anmeldung ist abgelaufen. Bitte lade die Seite neu.';
-  if (err.status === 403) return 'Zugriff verweigert. Ist die OneDrive-Freigabe noch aktiv und hat sie die richtige Stufe (Fotos: anzeigen, _kommentare: bearbeiten)?';
-  if (err.status === 404) return 'Nicht gefunden. Wurde der Ordner gelöscht, verschoben oder die Freigabe entfernt?';
+  if (err.status === 403 && !err.detail) return 'Zugriff verweigert. Ist die OneDrive-Freigabe noch aktiv und hat sie die richtige Stufe (Fotos: anzeigen, _kommentare: bearbeiten)?';
+  if (err.status === 404 && !err.detail) return 'Nicht gefunden. Wurde der Ordner gelöscht, verschoben oder die Freigabe entfernt?';
   if (err.status === 429 || err.status === 503) return 'Microsoft bremst gerade die Anfragen. Bitte in einer Minute noch einmal versuchen.';
-  return (err.message || String(err)) + (code ? ' (' + code + ')' : '');
+  return (err.message || String(err)) + (code ? ' (' + code + ')' : '') + (err.detail ? ' [' + err.detail + ']' : '');
 }
 
 /* ============================================================
@@ -297,18 +297,22 @@ class GraphApi {
   }
   async tryPaths(ctx, id, suffix, opt) {
     const list = this.paths(ctx, id, suffix);
-    let lastErr;
+    let firstErr;
+    const tried = [];
     for (let i = 0; i < list.length; i++) {
       try {
         const r = await this.call(list[i], opt);
         if (i > 0) ctx.mode = ctx.mode === 1 ? 0 : 1;
         return r;
       } catch (e) {
-        lastErr = e;
-        if (![403, 404, 400].includes(e.status)) throw e;
+        if (!firstErr) firstErr = e;
+        const code = e.body && e.body.error && e.body.error.code;
+        tried.push((list[i].startsWith('/shares') ? 'Freigabe' : 'Laufwerk') + ' ' + e.status + (code ? ' ' + code : ''));
+        if (![403, 404, 400].includes(e.status)) break;
       }
     }
-    throw lastErr;
+    firstErr.detail = tried.join(', ');
+    throw firstErr;
   }
   async listAll(ctx, id, suffix) {
     let page = await this.tryPaths(ctx, id, suffix);
@@ -374,33 +378,53 @@ class GraphApi {
 
   fileName(p) { return 'c_' + p.id.replace(/[^A-Za-z0-9_-]/g, '_') + '.json'; }
 
-  async commentFiles() {
-    const items = await this.listAll(this.B, this.B.item.id, '/children?$top=200&$select=id,name');
-    return new Set(items.map(i => i.name));
+  // Inhaltsverzeichnis des Kommentar-Ordners: Dateiname -> Datei-ID (kurz zwischengespeichert)
+  async commentIndex(force) {
+    if (!force && this.idx && Date.now() - this.idxTime < 20000) return this.idx;
+    if (!this.idxLoading) {
+      this.idxLoading = this.listAll(this.B, this.B.item.id, '/children?$top=200&$select=id,name')
+        .then(items => { this.idx = new Map(items.map(i => [i.name, i.id])); this.idxTime = Date.now(); return this.idx; })
+        .finally(() => { this.idxLoading = null; });
+    }
+    return this.idxLoading;
   }
 
-  async readComments(p) {
-    const fn = encodeURIComponent(this.fileName(p));
+  async commentFiles() { return new Set((await this.commentIndex(true)).keys()); }
+
+  async readComments(p, force) {
+    const idx = await this.commentIndex(force);
+    const fileId = idx.get(this.fileName(p));
+    if (!fileId) return { data: null, eTag: null, fileId: null };
     let it;
-    try { it = await this.tryPaths(this.B, this.B.item.id, ':/' + fn + ':'); }
-    catch (e) { if (e.status === 404) return { data: null, eTag: null }; throw e; }
+    try { it = await this.tryPaths(this.B, fileId, ''); }
+    catch (e) {
+      if (e.status === 404 && !force) return this.readComments(p, true);
+      throw e;
+    }
     let data;
     if (it['@microsoft.graph.downloadUrl']) {
       const r = await fetch(it['@microsoft.graph.downloadUrl'], { cache: 'no-store' });
+      if (!r.ok) throw userError('Kommentar-Datei konnte nicht gelesen werden (' + r.status + ').');
       data = await r.json();
     } else {
-      const r = await this.tryPaths(this.B, this.B.item.id, ':/' + fn + ':/content');
+      const r = await this.tryPaths(this.B, fileId, '/content');
       data = typeof r.json === 'function' ? await r.json() : r;
     }
-    return { data, eTag: it.eTag };
+    return { data, eTag: it.eTag, fileId };
   }
 
-  async writeComments(p, data, eTag) {
-    const fn = encodeURIComponent(this.fileName(p));
-    const suffix = ':/' + fn + ':/content' + (eTag ? '' : '?@microsoft.graph.conflictBehavior=fail');
-    const headers = { 'Content-Type': 'application/json' };
-    if (eTag) headers['If-Match'] = eTag;
-    await this.tryPaths(this.B, this.B.item.id, suffix, { method: 'PUT', headers, body: JSON.stringify(data) });
+  async writeComments(p, data, eTag, fileId) {
+    const name = this.fileName(p);
+    const body = JSON.stringify(data);
+    if (fileId) {
+      // vorhandene Datei: nur überschreiben, wenn sie seit dem Lesen niemand geändert hat
+      await this.tryPaths(this.B, fileId, '/content', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': eTag }, body });
+      return;
+    }
+    // neue Datei im Kommentar-Ordner anlegen; existiert sie schon, meldet Microsoft 409
+    const it = await this.tryPaths(this.B, this.B.item.id, ':/' + encodeURIComponent(name) + ':/content?@microsoft.graph.conflictBehavior=fail',
+      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body });
+    if (it && it.id && this.idx) this.idx.set(name, it.id);
   }
 }
 
@@ -903,7 +927,7 @@ function toggleFullscreen() {
 
 /* ---------- Kommentare ---------- */
 function clearComments() {
-  S.comments = null; S.commentsFor = null; S.eTag = null; S.replyTo = null;
+  S.comments = null; S.commentsFor = null; S.eTag = null; S.fileId = null; S.replyTo = null;
   UI.chSub.textContent = '';
   UI.clist.replaceChildren(h('p', { class: 'hint', text: 'Wähle ein Bild aus.' }));
   renderReplying();
@@ -912,14 +936,14 @@ async function loadComments(manual) {
   const p = S.photos[S.index];
   if (!p) return;
   const token = ++S.loadToken;
-  if (S.commentsFor !== p.id) { S.comments = null; S.commentsFor = null; S.eTag = null; }
+  if (S.commentsFor !== p.id) { S.comments = null; S.commentsFor = null; S.eTag = null; S.fileId = null; }
   UI.chSub.textContent = p.name;
   if (!manual) UI.clist.replaceChildren(h('p', { class: 'hint', text: 'Kommentare werden geladen …' }));
   renderReplying();
   try {
-    const { data, eTag } = await S.api.readComments(p);
+    const { data, eTag, fileId } = await S.api.readComments(p, manual);
     if (token !== S.loadToken) return;
-    S.comments = data; S.eTag = eTag; S.commentsFor = p.id;
+    S.comments = data; S.eTag = eTag; S.fileId = fileId; S.commentsFor = p.id;
     renderComments();
   } catch (e) {
     if (token !== S.loadToken) return;
@@ -981,11 +1005,11 @@ function renderReplying() {
 }
 async function mutate(p, fn) {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const { data, eTag } = attempt === 0 && S.commentsFor === p.id
-      ? { data: S.comments, eTag: S.eTag } : await S.api.readComments(p);
+    const { data, eTag, fileId } = attempt === 0 && S.commentsFor === p.id
+      ? { data: S.comments, eTag: S.eTag, fileId: S.fileId } : await S.api.readComments(p, true);
     const next = fn(data ? JSON.parse(JSON.stringify(data)) : { v: 1, photoId: p.id, photoName: p.name, comments: [] });
     try {
-      await S.api.writeComments(p, next, eTag);
+      await S.api.writeComments(p, next, eTag, fileId);
       return next;
     } catch (e) {
       if (e.status === 412 || e.status === 409) { await sleep(300 + Math.random() * 700); continue; }
