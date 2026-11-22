@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https:; frame-src https://login.microsoftonline.com https://login.live.com; object-src 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Fotogalerie</title>
+<style>
+:root{--bg:#141414;--panel:#1b1b1b;--panel2:#242424;--line:#2f2f2f;--text:#ebe9e6;--muted:#9d9a95;--accent:#e2a83e;--accent-ink:#1d1606;--danger:#ef7b6d;--radius:8px}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+a{color:var(--accent)}
+.topbar{height:48px;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{font-weight:600;white-space:nowrap}
+.gname{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.spacer{flex:1}
+.who{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30vw}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:var(--radius);padding:6px 12px;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:#555}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.small{padding:3px 9px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:13px}
+.linkbtn:hover{color:var(--text);text-decoration:underline}
+.linkbtn.warn{color:var(--danger)}
+.badge-demo{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font-weight:700}
+.center{min-height:calc(100dvh - 48px);display:grid;place-items:center;padding:24px 16px}
+.card{width:min(580px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px}
+.card h1{font-size:22px;margin:0 0 12px}
+.card p{color:var(--muted);margin:0 0 14px}
+.card .actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
+.field{display:block;margin:0 0 14px}
+.field span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.field input,.row input{width:100%;padding:9px 11px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.err{color:var(--danger);font-size:14px;margin:10px 0 0;white-space:pre-wrap}
+.result{margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row input{flex:1;min-width:0}
+.gallery{display:grid;grid-template-columns:280px minmax(0,1fr) 340px;height:calc(100dvh - 48px)}
+.side{display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--panel);min-height:0}
+.tree{flex:0 1 auto;max-height:42%;overflow:auto;padding:6px 0;border-bottom:1px solid var(--line)}
+.trow{display:flex;align-items:center;padding-right:8px}
+.trow.sel{background:var(--panel2)}
+.trow.sel .tlabel{color:var(--accent)}
+.twisty{width:24px;height:28px;border:0;background:none;color:var(--muted);flex:none;transition:transform .15s;padding:0}
+.twisty.open{transform:rotate(90deg)}
+.twisty.leaf{visibility:hidden}
+.tlabel{flex:1;min-width:0;text-align:left;border:0;background:none;padding:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumbs-head{padding:8px 12px;font-size:12px;color:var(--muted)}
+.thumbs{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;padding:0 10px 12px;align-content:start}
+.thumb{position:relative;aspect-ratio:1;border:2px solid transparent;border-radius:6px;padding:0;background:var(--panel2);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb.sel{border-color:var(--accent)}
+.thumb .dot{position:absolute;right:4px;top:4px;width:12px;height:12px;border-radius:6px;background:var(--accent);box-shadow:0 0 0 2px rgba(0,0,0,.5)}
+.thumb .fallback{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:var(--muted);padding:4px;overflow-wrap:anywhere}
+.note{color:var(--muted);font-size:13px;padding:12px}
+.viewer{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;background:#0b0b0b}
+.stage{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.stage.dragging{cursor:grabbing}
+.stage img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;-webkit-user-drag:none;pointer-events:none}
+.stage .msg{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);text-align:center;padding:24px}
+.nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;border-radius:8px;background:rgba(0,0,0,.4);color:#fff;font-size:30px;line-height:1;opacity:.55;z-index:2}
+.nav:hover{opacity:1}
+.nav.prev{left:10px}.nav.next{right:10px}
+.pill{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;font-size:12px;padding:4px 12px;border-radius:99px;z-index:2;white-space:nowrap}
+.toolbar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid var(--line);background:var(--panel)}
+.toolbar .fname{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.toolbar .count{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.toolbar .zoom{font-variant-numeric:tabular-nums;font-size:13px;width:46px;text-align:center}
+.ibtn{min-width:32px;height:32px;border:1px solid var(--line);background:var(--panel2);border-radius:6px;padding:0 8px;font-size:13px}
+.sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+.comments{display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--panel);min-height:0}
+.chead{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.chead .t{flex:1;min-width:0}
+.chead h2{font-size:15px;margin:0}
+.chead .sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clist{flex:1;overflow:auto;padding:14px 16px}
+.thread{margin-bottom:16px}
+.comment{margin-bottom:8px}
+.comment .meta{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.comment .author{font-weight:600;font-size:14px}
+.comment .time{color:var(--muted);font-size:12px}
+.comment .text{margin:2px 0 4px;white-space:pre-wrap;overflow-wrap:anywhere}
+.comment .text.deleted{color:var(--muted);font-style:italic}
+.comment .acts{display:flex;gap:14px}
+.replies{margin-left:12px;padding-left:12px;border-left:2px solid var(--line)}
+.composer{border-top:1px solid var(--line);padding:12px 16px}
+.replying{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}
+.composer textarea{width:100%;min-height:76px;resize:vertical;padding:8px 10px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius)}
+.composer .row{margin-top:8px;justify-content:space-between}
+.hint{font-size:12px;color:var(--muted)}
+.viewer:fullscreen{background:#000}
+@media (max-width:900px){
+  .gallery{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 64dvh auto;height:auto}
+  .side{border-right:0;border-bottom:1px solid var(--line)}
+  .tree{max-height:24dvh;flex:none}
+  .thumbs{flex:none;height:96px;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:76px;overflow-x:auto;overflow-y:hidden}
+  .comments{border-left:0;border-top:1px solid var(--line)}
+  .clist{overflow:visible}
+  .who{display:none}
+  .toolbar .hide-sm{display:none}
+}
+</style>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.30.0/lib/msal-browser.min.js" integrity="sha384-RGxxfG5yRS8DLU7ZJ8OoLhbV/BsJFHyPuMVHrTLbpj3t5Z15LnviJmaznKY/a7LZ" crossorigin="anonymous"></script>
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">Fotogalerie</span>
+  <span class="gname" id="gname"></span>
+  <span id="demoBadge" class="badge-demo" hidden>Demo</span>
+  <span class="spacer"></span>
+  <span class="who" id="who"></span>
+  <button class="linkbtn" id="newGalleryBtn" hidden>Neue Galerie einrichten</button>
+  <button class="btn small" id="logoutBtn" hidden>Abmelden</button>
+</header>
+<main id="app"></main>
+
+<script>
+'use strict';
+
+/* ============================================================
+   Grundlagen
+   ============================================================ */
+const SCOPES = ['User.Read', 'Files.ReadWrite.All'];
+const GRAPH = 'https://graph.microsoft.com/v1.0';
+const BASE = location.origin + location.pathname.replace(/index\.html$/, '');
+const COMMENT_FOLDER = '_kommentare';
+const app = document.getElementById('app');
+
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid == null || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+
+const b64u = {
+  enc(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    bytes.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  },
+  dec(s) {
+    const b = s.replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(b + '='.repeat((4 - b.length % 4) % 4));
+    return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+  }
+};
+
+const collator = new Intl.Collator('de', { numeric: true, sensitivity: 'base' });
+const byName = (a, b) => collator.compare(a.name, b.name);
+const fmtTime = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+function userError(msg) { const e = new Error(msg); e.user = true; return e; }
+
+function explain(err) {
+  if (!err) return 'Unbekannter Fehler.';
+  if (err.user) return err.message;
+  const code = err.body && err.body.error && err.body.error.code;
+  if (err.status === 401) return 'Die Anmeldung ist abgelaufen. Bitte lade die Seite neu.';
+  if (err.status === 403) return 'Zugriff verweigert. Ist die OneDrive-Freigabe noch aktiv und hat sie die richtige Stufe (Fotos: anzeigen, _kommentare: bearbeiten)?';
+  if (err.status === 404) return 'Nicht gefunden. Wurde der Ordner gelöscht, verschoben oder die Freigabe entfernt?';
+  if (err.status === 429 || err.status === 503) return 'Microsoft bremst gerade die Anfragen. Bitte in einer Minute noch einmal versuchen.';
+  return (err.message || String(err)) + (code ? ' (' + code + ')' : '');
+}
+
+/* ============================================================
+   Galerie-Link: #g=<base64url(JSON)>
+   ============================================================ */
+function parseGalleryHash() {
+  const m = /^#g=([A-Za-z0-9_-]+)$/.exec(location.hash);
+  if (!m) return null;
+  try {
+    const g = JSON.parse(b64u.dec(m[1]));
+    if (g && g.a && g.b) return { name: g.n || 'Galerie', a: g.a, b: g.b };
+  } catch (e) { /* ungültig */ }
+  return null;
+}
+function makeGalleryLink(name, a, b) {
+  return BASE + '#g=' + b64u.enc(JSON.stringify({ v: 1, n: name, a, b }));
+}
+function saveHash() { try { sessionStorage.setItem('galerie.hash', location.hash); } catch (e) {} }
+function restoreHash() {
+  let saved = null;
+  try { saved = sessionStorage.getItem('galerie.hash'); sessionStorage.removeItem('galerie.hash'); } catch (e) {}
+  if (saved && saved.startsWith('#') && (!location.hash || /[#&](code|state|error)=/.test(location.hash))) {
+    history.replaceState(null, '', BASE + saved);
+  }
+}
+
+/* ============================================================
+   Anmeldung (MSAL)
+   ============================================================ */
+let msalApp = null;
+
+async function getToken() {
+  const account = msalApp.getActiveAccount() || msalApp.getAllAccounts()[0];
+  if (!account) throw userError('Nicht angemeldet.');
+  try {
+    const r = await msalApp.acquireTokenSilent({ scopes: SCOPES, account });
+    return r.accessToken;
+  } catch (e) {
+    if (e instanceof msal.InteractionRequiredAuthError) {
+      saveHash();
+      await msalApp.acquireTokenRedirect({ scopes: SCOPES, account });
+      return new Promise(() => {});
+    }
+    throw e;
+  }
+}
+
+function login() {
+  saveHash();
+  msalApp.loginRedirect({ scopes: SCOPES, prompt: 'select_account' });
+}
+
+async function logout() {
+  try {
+    if (typeof msalApp.clearCache === 'function') await msalApp.clearCache();
+    else return msalApp.logoutRedirect({ postLogoutRedirectUri: BASE });
+  } catch (e) {}
+  location.href = BASE + location.hash;
+  location.reload();
+}
+
+/* ============================================================
+   Zugriff auf OneDrive über Microsoft Graph
+   ============================================================ */
+function shareId(url) { return 'u!' + b64u.enc(url.trim()); }
+
+class GraphApi {
+  async call(path, opt = {}) {
+    const token = await getToken();
+    const url = path.startsWith('https://') ? path : GRAPH + path;
+    const res = await fetch(url, {
+      method: opt.method || 'GET',
+      headers: Object.assign({ Authorization: 'Bearer ' + token }, opt.headers || {}),
+      body: opt.body
+    });
+    if (!res.ok) {
+      const err = new Error('Fehler ' + res.status);
+      err.status = res.status;
+      try { err.body = await res.json(); } catch (e) {}
+      throw err;
+    }
+    if (res.status === 204) return null;
+    const ct = res.headers.get('content-type') || '';
+    return ct.includes('json') ? res.json() : res;
+  }
+
+  async resolve(link) {
+    const sid = shareId(link);
+    const item = await this.call('/shares/' + sid + '/driveItem', { headers: { Prefer: 'redeemSharingLink' } });
+    const driveId = (item.parentReference && item.parentReference.driveId) ||
+                    (item.remoteItem && item.remoteItem.parentReference && item.remoteItem.parentReference.driveId);
+    return { sid, item, driveId, mode: 0 };
+  }
+
+  // Zwei Wege zu jedem Element: direkt über das Laufwerk oder über den Freigabelink.
+  // Der erste, der funktioniert, wird für diesen Link gemerkt.
+  paths(ctx, id, suffix) {
+    const viaDrive = ctx.driveId ? '/drives/' + ctx.driveId + '/items/' + id + suffix : null;
+    const viaShare = '/shares/' + ctx.sid + (id === ctx.item.id ? '/driveItem' : '/items/' + id) + suffix;
+    const list = [viaDrive, viaShare].filter(Boolean);
+    return ctx.mode === 1 ? list.reverse() : list;
+  }
+  async tryPaths(ctx, id, suffix, opt) {
+    const list = this.paths(ctx, id, suffix);
+    let lastErr;
+    for (let i = 0; i < list.length; i++) {
+      try {
+        const r = await this.call(list[i], opt);
+        if (i > 0) ctx.mode = ctx.mode === 1 ? 0 : 1;
+        return r;
+      } catch (e) {
+        lastErr = e;
+        if (![403, 404, 400].includes(e.status)) throw e;
+      }
+    }
+    throw lastErr;
+  }
+  async listAll(ctx, id, suffix) {
+    let page = await this.tryPaths(ctx, id, suffix);
+    const out = page.value || [];
+    while (page['@odata.nextLink']) {
+      page = await this.call(page['@odata.nextLink']);
+      out.push(...(page.value || []));
+    }
+    return out;
+  }
+
+  async init(g) {
+    const [me, A, B] = await Promise.all([this.call('/me'), this.resolve(g.a), this.resolve(g.b)]);
+    if (!A.item.folder) throw userError('Der Foto-Link (Link A) zeigt nicht auf einen Ordner.');
+    if (!B.item.folder) throw userError('Der Kommentar-Link (Link B) zeigt nicht auf einen Ordner.');
+    this.A = A; this.B = B;
+    this.me = { id: me.id, name: me.displayName || me.userPrincipalName || 'Unbekannt' };
+    this.isOwner = false;
+    try {
+      const d = await this.call('/me/drive?$select=id');
+      this.isOwner = !!A.driveId && d.id.toLowerCase() === A.driveId.toLowerCase();
+    } catch (e) {}
+    return { id: A.item.id, name: A.item.name };
+  }
+
+  async children(folder) {
+    const items = await this.listAll(this.A, folder.id, '/children?$top=200&$expand=thumbnails');
+    const folders = [], photos = [];
+    for (const it of items) {
+      if (it.folder) {
+        if (it.name.toLowerCase() === COMMENT_FOLDER || it.id === this.B.item.id) continue;
+        folders.push({ id: it.id, name: it.name });
+      } else if (it.file && (/\.jpe?g$/i.test(it.name) || it.file.mimeType === 'image/jpeg')) {
+        const t = (it.thumbnails && it.thumbnails[0]) || {};
+        photos.push({
+          id: it.id, name: it.name,
+          w: it.image && it.image.width, h: it.image && it.image.height,
+          thumb: (t.medium || t.small || {}).url,
+          large: (t.large || {}).url,
+          dl: it['@microsoft.graph.downloadUrl']
+        });
+      }
+    }
+    return { folders: folders.sort(byName), photos: photos.sort(byName) };
+  }
+
+  async thumbUrl(p) { return p.thumb; }
+
+  async previewUrl(p) {
+    try {
+      const r = await this.tryPaths(this.A, p.id, '/thumbnails?select=c2560x2560');
+      const u = r.value && r.value[0] && r.value[0].c2560x2560 && r.value[0].c2560x2560.url;
+      if (u) return u;
+    } catch (e) {}
+    return p.large || this.originalUrl(p);
+  }
+
+  async originalUrl(p) {
+    if (p.dl && !p.dlUsed) { p.dlUsed = true; return p.dl; }
+    const it = await this.tryPaths(this.A, p.id, '');
+    return it['@microsoft.graph.downloadUrl'];
+  }
+
+  fileName(p) { return 'c_' + p.id.replace(/[^A-Za-z0-9_-]/g, '_') + '.json'; }
+
+  async commentFiles() {
+    const items = await this.listAll(this.B, this.B.item.id, '/children?$top=200&$select=id,name');
+    return new Set(items.map(i => i.name));
+  }
+
+  async readComments(p) {
+    const fn = encodeURIComponent(this.fileName(p));
+    let it;
+    try { it = await this.tryPaths(this.B, this.B.item.id, ':/' + fn + ':'); }
+    catch (e) { if (e.status === 404) return { data: null, eTag: null }; throw e; }
+    let data;
+    if (it['@microsoft.graph.downloadUrl']) {
+      const r = await fetch(it['@microsoft.graph.downloadUrl'], { cache: 'no-store' });
+      data = await r.json();
+    } else {
+      const r = await this.tryPaths(this.B, this.B.item.id, ':/' + fn + ':/content');
+      data = typeof r.json === 'function' ? await r.json() : r;
+    }
+    return { data, eTag: it.eTag };
+  }
+
+  async writeComments(p, data, eTag) {
+    const fn = encodeURIComponent(this.fileName(p));
+    const suffix = ':/' + fn + ':/content' + (eTag ? '' : '?@microsoft.graph.conflictBehavior=fail');
+    const headers = { 'Content-Type': 'application/json' };
+    if (eTag) headers['If-Match'] = eTag;
+    await this.tryPaths(this.B, this.B.item.id, suffix, { method: 'PUT', headers, body: JSON.stringify(data) });
+  }
+}
+
+/* ============================================================
+   Demo-Modus: dieselbe Oberfläche mit erzeugten Bildern
+   ============================================================ */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function drawScene(w, h, seed, label, detail) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); const rnd = mulberry32(seed);
+  const hue = Math.floor(rnd() * 360);
+  const g = x.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, 'hsl(' + hue + ',45%,' + (48 + rnd() * 14) + '%)');
+  g.addColorStop(0.6, 'hsl(' + ((hue + 30) % 360) + ',55%,74%)');
+  g.addColorStop(1, 'hsl(' + ((hue + 45) % 360) + ',45%,62%)');
+  x.fillStyle = g; x.fillRect(0, 0, w, h);
+  x.fillStyle = 'hsla(' + ((hue + 40) % 360) + ',90%,88%,.9)';
+  x.beginPath(); x.arc(w * (0.2 + rnd() * 0.6), h * (0.18 + rnd() * 0.18), Math.min(w, h) * 0.07, 0, 7); x.fill();
+  for (let L = 0; L < 4; L++) {
+    const base = h * (0.5 + L * 0.12), amp = h * (0.08 - L * 0.012), fr = 1 + rnd() * 3, ph = rnd() * 6;
+    x.fillStyle = 'hsl(' + ((hue + 150 + L * 12) % 360) + ',' + (28 + L * 8) + '%,' + (46 - L * 9) + '%)';
+    x.beginPath(); x.moveTo(0, h);
+    for (let i = 0; i <= 240; i++) {
+      const px = w * i / 240;
+      x.lineTo(px, base - amp * Math.sin(px / w * Math.PI * fr + ph) - amp * 0.4 * Math.sin(px / w * Math.PI * fr * 3.7 + ph * 2));
+    }
+    x.lineTo(w, h); x.fill();
+  }
+  for (let i = 0; i < 7; i++) {
+    const cx = w * (0.1 + rnd() * 0.8), cy = h * (0.62 + rnd() * 0.1), ch = h * (0.1 + rnd() * 0.06);
+    x.fillStyle = 'hsl(130,25%,16%)';
+    x.beginPath(); x.ellipse(cx, cy - ch / 2, ch * 0.13, ch / 2, 0, 0, 7); x.fill();
+  }
+  if (detail) {
+    x.strokeStyle = 'rgba(20,40,10,.55)'; x.lineWidth = Math.max(1, w / 2500);
+    for (let i = 0; i < 9000; i++) {
+      const gx = rnd() * w, gy = h * (0.8 + rnd() * 0.2);
+      x.beginPath(); x.moveTo(gx, gy); x.lineTo(gx + (rnd() - 0.5) * w * 0.004, gy - h * 0.012 * rnd()); x.stroke();
+    }
+    x.fillStyle = 'rgba(255,255,255,.85)'; x.font = Math.round(h * 0.012) + 'px system-ui';
+    x.fillText('Originalauflösung ' + w + ' × ' + h, w * 0.03, h * 0.04);
+  }
+  x.fillStyle = 'rgba(0,0,0,.4)'; x.font = Math.round(h * 0.035) + 'px system-ui';
+  x.fillText(label, w * 0.03, h * 0.95);
+  return new Promise(r => c.toBlob(b => r(URL.createObjectURL(b)), 'image/jpeg', 0.86));
+}
+
+class DemoApi {
+  constructor() {
+    this.me = { id: 'demo-me', name: 'Du (Demo)' };
+    this.isOwner = true;
+    this.cache = new Map();
+    let n = 0;
+    const mk = (count, prefix) => Array.from({ length: count }, (_, i) => {
+      n++; const portrait = n % 4 === 0;
+      return { id: 'p' + n, name: prefix + '-' + String(i + 1).padStart(3, '0') + '.jpg', w: portrait ? 2000 : 3000, h: portrait ? 3000 : 2000, seed: n * 97 };
+    });
+    this.tree = {
+      root: { folders: ['f1', 'f2', 'f3'], photos: [] },
+      f1: { name: 'Tag 1 – Florenz', folders: [], photos: mk(7, 'L1000') },
+      f2: { name: 'Tag 2 – Siena', folders: [], photos: mk(5, 'L1100') },
+      f3: { name: 'Tag 3 – Val d’Orcia', folders: ['f4'], photos: mk(4, 'L1200') },
+      f4: { name: 'Sonnenaufgang', folders: [], photos: mk(3, 'L1300') }
+    };
+    const t0 = Date.now() - 86400000;
+    this.store = new Map([
+      ['p1', { comments: [
+        { id: 'a', parent: null, author: { id: 'anna', name: 'Anna' }, text: 'Was für ein Licht! Das war der Abend am Piazzale Michelangelo, oder?', ts: t0 },
+        { id: 'b', parent: 'a', author: { id: 'peter', name: 'Peter' }, text: 'Genau, kurz bevor das Gewitter kam.', ts: t0 + 3600000 },
+        { id: 'c', parent: null, author: { id: 'peter', name: 'Peter' }, text: 'Könntest du mir das in groß schicken? Würde ich gern drucken.', ts: t0 + 7200000 }
+      ] }],
+      ['p9', { comments: [{ id: 'd', parent: null, author: { id: 'anna', name: 'Anna' }, text: 'Lieblingsbild der Reise.', ts: t0 + 9000000 }] }]
+    ]);
+  }
+  async init() { return { id: 'root', name: 'Toskana 2026' }; }
+  async children(folder) {
+    await sleep(150);
+    const node = this.tree[folder.id];
+    return {
+      folders: node.folders.map(id => ({ id, name: this.tree[id].name })),
+      photos: node.photos.map(p => Object.assign({}, p))
+    };
+  }
+  img(p, kind) {
+    const key = p.id + ':' + kind;
+    if (!this.cache.has(key)) {
+      const f = kind === 'thumb' ? 0.08 : kind === 'preview' ? 0.5 : 1;
+      this.cache.set(key, drawScene(Math.round(p.w * f), Math.round(p.h * f), p.seed, p.name, kind === 'orig'));
+    }
+    return this.cache.get(key);
+  }
+  thumbUrl(p) { return this.img(p, 'thumb'); }
+  previewUrl(p) { return this.img(p, 'preview'); }
+  async originalUrl(p) { await sleep(400); return this.img(p, 'orig'); }
+  async commentFiles() { return new Set([...this.store.keys()].map(id => this.fileName({ id }))); }
+  fileName(p) { return 'c_' + p.id + '.json'; }
+  async readComments(p) {
+    await sleep(200);
+    const d = this.store.get(p.id);
+    return { data: d ? JSON.parse(JSON.stringify(d)) : null, eTag: d ? 'x' : null };
+  }
+  async writeComments(p, data) { await sleep(300); this.store.set(p.id, JSON.parse(JSON.stringify(data))); }
+}
+
+/* ============================================================
+   Bildschirme: Hinweis, Anmeldung, Einrichtung
+   ============================================================ */
+function setHeader({ name = '', who = '', demo = false, loggedIn = false } = {}) {
+  document.getElementById('gname').textContent = name ? '· ' + name : '';
+  document.getElementById('who').textContent = who;
+  document.getElementById('demoBadge').hidden = !demo;
+  document.getElementById('logoutBtn').hidden = !loggedIn;
+  document.title = name ? name + ' · Fotogalerie' : 'Fotogalerie';
+}
+
+function showMessage(title, text, extra) {
+  setHeader();
+  app.replaceChildren(h('div', { class: 'center' }, h('div', { class: 'card' },
+    h('h1', { text: title }), h('p', { text }), extra || null)));
+}
+
+function showLogin(g) {
+  setHeader({ name: g ? g.name : '' });
+  app.replaceChildren(h('div', { class: 'center' }, h('div', { class: 'card' },
+    h('h1', { text: g ? 'Galerie „' + g.name + '“' : 'Fotogalerie' }),
+    h('p', { text: g
+      ? 'Du bist eingeladen, die Fotos anzusehen und zu kommentieren. Dazu meldest du dich mit deinem privaten Microsoft-Konto an (Outlook, Hotmail, OneDrive …).'
+      : 'Melde dich mit deinem privaten Microsoft-Konto an, um eine Galerie einzurichten oder zu öffnen.' }),
+    h('p', { text: 'Beim ersten Mal fragt Microsoft, ob die Galerie auf Dateien zugreifen darf, eventuell mit dem Hinweis „nicht überprüft“. Das ist nötig, damit sie die freigegebenen Fotos lesen und Kommentare speichern kann.' }),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: login }, 'Mit Microsoft anmelden'),
+      h('a', { href: '#demo' }, 'Demo ansehen')))));
+}
+
+function showSetup(api) {
+  setHeader({ who: api.me ? api.me.name : '', loggedIn: true });
+  const name = h('input', { type: 'text', placeholder: 'z. B. Toskana 2026', maxlength: '80' });
+  const a = h('input', { type: 'url', placeholder: 'https://1drv.ms/f/…' });
+  const b = h('input', { type: 'url', placeholder: 'https://1drv.ms/f/…' });
+  const err = h('p', { class: 'err', hidden: true });
+  const result = h('div', { class: 'result', hidden: true });
+  const go = h('button', { class: 'btn primary', type: 'submit' }, 'Galerie-Link erstellen');
+
+  async function submit(ev) {
+    ev.preventDefault();
+    err.hidden = true; result.hidden = true;
+    const n = name.value.trim(), la = a.value.trim(), lb = b.value.trim();
+    if (!n || !la || !lb) { err.textContent = 'Bitte alle drei Felder ausfüllen.'; err.hidden = false; return; }
+    if (!/^https:\/\//i.test(la) || !/^https:\/\//i.test(lb)) { err.textContent = 'Die Links müssen mit https:// beginnen. Kopiere sie in OneDrive über „Link kopieren“.'; err.hidden = false; return; }
+    if (la === lb) { err.textContent = 'Link A und Link B sind gleich. Link B muss auf den Ordner _kommentare zeigen.'; err.hidden = false; return; }
+    go.disabled = true; go.textContent = 'Prüfe die Links …';
+    try {
+      const A = await api.resolve(la).catch(e => { throw userError('Link A (Fotos) ist nicht erreichbar: ' + explain(e)); });
+      const B = await api.resolve(lb).catch(e => { throw userError('Link B (Kommentare) ist nicht erreichbar: ' + explain(e)); });
+      if (!A.item.folder) throw userError('Link A zeigt nicht auf einen Ordner.');
+      if (!B.item.folder) throw userError('Link B zeigt nicht auf einen Ordner.');
+      const warn = B.item.name.toLowerCase() !== COMMENT_FOLDER ? 'Hinweis: Link B zeigt auf den Ordner „' + B.item.name + '“, nicht auf „_kommentare“. Das funktioniert, ist aber ungewöhnlich.' : null;
+      const link = makeGalleryLink(n, la, lb);
+      const out = h('input', { type: 'text', readonly: true, value: link });
+      const copy = h('button', { class: 'btn', type: 'button', onclick: async () => {
+        try { await navigator.clipboard.writeText(link); copy.textContent = 'Kopiert'; }
+        catch (e) { out.select(); copy.textContent = 'Mit Strg+C kopieren'; }
+        setTimeout(() => { copy.textContent = 'Kopieren'; }, 2500);
+      } }, 'Kopieren');
+      result.replaceChildren(
+        h('p', { text: 'Fotos: „' + A.item.name + '“ · Kommentare: „' + B.item.name + '“' }),
+        warn ? h('p', { class: 'err', text: warn }) : null,
+        h('div', { class: 'row' }, out, copy),
+        h('p', { class: 'hint', style: 'margin-top:10px', text: 'Diesen Link verschickst du an deine Freunde. Er enthält beide OneDrive-Links, also bitte nicht öffentlich posten.' }),
+        h('div', { class: 'actions' }, h('a', { href: link }, 'Galerie jetzt öffnen')));
+      result.hidden = false;
+    } catch (e) {
+      err.textContent = explain(e); err.hidden = false;
+    } finally {
+      go.disabled = false; go.textContent = 'Galerie-Link erstellen';
+    }
+  }
+
+  app.replaceChildren(h('div', { class: 'center' }, h('form', { class: 'card', onsubmit: submit },
+    h('h1', { text: 'Neue Galerie einrichten' }),
+    h('p', { text: 'Füge die beiden OneDrive-Links aus Teil 4 der Anleitung ein. Daraus entsteht der Galerie-Link, den du verschickst.' }),
+    h('label', { class: 'field' }, h('span', { text: 'Name der Galerie' }), name),
+    h('label', { class: 'field' }, h('span', { text: 'Link A – Fotoordner (Kann anzeigen)' }), a),
+    h('label', { class: 'field' }, h('span', { text: 'Link B – Ordner _kommentare (Kann bearbeiten)' }), b),
+    h('div', { class: 'actions' }, go),
+    err, result)));
+  name.focus();
+}
+
+/* ============================================================
+   Galerie
+   ============================================================ */
+const S = { api: null, root: null, folder: null, photos: [], index: -1, files: new Set(), comments: null, commentsFor: null, eTag: null, replyTo: null, loadToken: 0, busy: false };
+const UI = {};
+
+async function startGallery(api, g, demo) {
+  S.api = api;
+  showMessage('Galerie wird geladen …', 'Einen Moment bitte.');
+  let root;
+  try { root = await api.init(g); }
+  catch (e) {
+    showMessage('Die Galerie lässt sich nicht öffnen', explain(e),
+      h('p', { class: 'hint', text: 'Wenn du die Galerie eingerichtet hast: Prüfe in OneDrive, ob beide Freigaben noch bestehen. Sonst frag bitte bei der Person nach, die dir den Link geschickt hat.' }));
+    return;
+  }
+  setHeader({ name: g.name, who: api.me.name, demo, loggedIn: !demo });
+  document.getElementById('newGalleryBtn').hidden = !(api.isOwner && !demo);
+  buildGalleryLayout();
+  S.root = { id: root.id, name: root.name, depth: 0 };
+  UI.tree.replaceChildren(treeNode(S.root));
+  api.commentFiles().then(f => { S.files = f; refreshBadges(); }).catch(() => {});
+  await selectFolder(S.root);
+  setInterval(pollComments, 45000);
+}
+
+function buildGalleryLayout() {
+  UI.tree = h('div', { class: 'tree', role: 'tree', 'aria-label': 'Ordner' });
+  UI.thumbsHead = h('div', { class: 'thumbs-head' });
+  UI.thumbs = h('div', { class: 'thumbs' });
+  UI.img = h('img', { alt: '' });
+  UI.stageMsg = h('div', { class: 'msg' });
+  UI.pill = h('div', { class: 'pill', hidden: true });
+  UI.prev = h('button', { class: 'nav prev', 'aria-label': 'Vorheriges Bild', onclick: () => step(-1) }, '‹');
+  UI.next = h('button', { class: 'nav next', 'aria-label': 'Nächstes Bild', onclick: () => step(1) }, '›');
+  UI.stage = h('div', { class: 'stage' }, UI.img, UI.stageMsg, UI.pill, UI.prev, UI.next);
+  UI.count = h('span', { class: 'count' });
+  UI.fname = h('span', { class: 'fname' });
+  UI.zoom = h('span', { class: 'zoom' });
+  const tb = (label, title, fn, cls) => h('button', { class: 'ibtn ' + (cls || ''), title, 'aria-label': title, onclick: fn }, label);
+  UI.viewer = h('section', { class: 'viewer' }, UI.stage, h('div', { class: 'toolbar' },
+    UI.count, UI.fname,
+    tb('−', 'Verkleinern (−)', () => zoomCenter(1 / 1.5)), UI.zoom, tb('+', 'Vergrößern (+)', () => zoomCenter(1.5)),
+    tb('Einpassen', 'Einpassen (0)', fitView, 'hide-sm'), tb('1:1', 'Originalgröße (1)', oneToOne),
+    tb('⛶', 'Vollbild', toggleFullscreen, 'hide-sm')));
+  UI.chTitle = h('h2', { text: 'Kommentare' });
+  UI.chSub = h('div', { class: 'sub' });
+  UI.reload = h('button', { class: 'linkbtn', title: 'Kommentare neu laden', onclick: () => loadComments(true) }, 'Neu laden');
+  UI.clist = h('div', { class: 'clist', 'aria-live': 'polite' });
+  UI.replying = h('div', { class: 'replying', hidden: true });
+  UI.text = h('textarea', { placeholder: 'Kommentar schreiben …', maxlength: '4000', 'aria-label': 'Kommentar' });
+  UI.send = h('button', { class: 'btn primary', disabled: true, onclick: sendComment }, 'Senden');
+  UI.cerr = h('p', { class: 'err', hidden: true });
+  UI.text.addEventListener('input', () => { UI.send.disabled = !UI.text.value.trim() || S.busy; });
+  UI.text.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (!UI.send.disabled) sendComment(); } });
+  UI.comments = h('aside', { class: 'comments' },
+    h('div', { class: 'chead' }, h('div', { class: 't' }, UI.chTitle, UI.chSub), UI.reload),
+    UI.clist,
+    h('div', { class: 'composer' }, UI.replying, UI.text, UI.cerr,
+      h('div', { class: 'row' }, h('span', { class: 'hint', text: 'Strg + Enter zum Senden' }), UI.send)));
+  app.replaceChildren(h('div', { class: 'gallery' },
+    h('nav', { class: 'side' }, UI.tree, UI.thumbsHead, UI.thumbs), UI.viewer, UI.comments));
+  initViewer();
+}
+
+/* ---------- Ordnerbaum ---------- */
+function treeNode(folder) {
+  const tw = h('button', { class: 'twisty', 'aria-label': 'Aufklappen', onclick: () => toggleFolder(folder) }, '▸');
+  const lb = h('button', { class: 'tlabel', title: folder.name, onclick: () => selectFolder(folder) }, folder.name);
+  const row = h('div', { class: 'trow', role: 'treeitem', style: 'padding-left:' + (6 + folder.depth * 14) + 'px' }, tw, lb);
+  const kids = h('div', { hidden: true, role: 'group' });
+  folder.el = { row, tw, kids };
+  return h('div', null, row, kids);
+}
+async function loadFolder(folder) {
+  if (!folder.data) {
+    if (!folder.loading) folder.loading = S.api.children(folder).then(d => { folder.data = d; }).finally(() => { folder.loading = null; });
+    await folder.loading;
+  }
+  if (!folder.rendered) {
+    folder.rendered = true;
+    const subs = folder.data.folders.map(f => Object.assign(f, { depth: folder.depth + 1 }));
+    folder.el.kids.replaceChildren(...subs.map(treeNode));
+    if (!subs.length) folder.el.tw.classList.add('leaf');
+  }
+  return folder.data;
+}
+async function toggleFolder(folder, forceOpen) {
+  const open = forceOpen || folder.el.kids.hidden;
+  if (open) {
+    try { await loadFolder(folder); } catch (e) { return; }
+  }
+  folder.el.kids.hidden = !open;
+  folder.el.tw.classList.toggle('open', open);
+}
+async function selectFolder(folder) {
+  if (S.folder && S.folder.el) S.folder.el.row.classList.remove('sel');
+  S.folder = folder;
+  folder.el.row.classList.add('sel');
+  UI.thumbs.replaceChildren(h('div', { class: 'note', text: 'Lädt …' }));
+  UI.thumbsHead.textContent = folder.name;
+  let data;
+  try { data = await loadFolder(folder); }
+  catch (e) { UI.thumbs.replaceChildren(h('div', { class: 'note', text: explain(e) })); return; }
+  if (S.folder !== folder) return;
+  toggleFolder(folder, true);
+  S.photos = data.photos;
+  UI.thumbsHead.textContent = folder.name + ' · ' + data.photos.length + (data.photos.length === 1 ? ' Bild' : ' Bilder');
+  renderThumbs();
+  if (S.photos.length) selectPhoto(0);
+  else {
+    S.index = -1;
+    showStageMessage(data.folders.length ? 'Dieser Ordner enthält keine Bilder.\nWähle links einen Unterordner.' : 'Dieser Ordner ist leer.');
+    clearComments();
+  }
+}
+
+/* ---------- Vorschaubilder ---------- */
+function renderThumbs() {
+  if (!S.photos.length) { UI.thumbs.replaceChildren(h('div', { class: 'note', text: 'Keine Bilder in diesem Ordner.' })); return; }
+  UI.thumbs.replaceChildren(...S.photos.map((p, i) => {
+    const img = h('img', { alt: p.name, loading: 'lazy', decoding: 'async' });
+    img.addEventListener('error', () => { img.remove(); btn.append(h('span', { class: 'fallback', text: p.name })); });
+    Promise.resolve(S.api.thumbUrl(p)).then(u => { if (u) img.src = u; else img.dispatchEvent(new Event('error')); });
+    const btn = h('button', { class: 'thumb', title: p.name, 'aria-label': p.name, onclick: () => selectPhoto(i) }, img);
+    p.thumbEl = btn;
+    return btn;
+  }));
+  refreshBadges();
+}
+function refreshBadges() {
+  for (const p of S.photos) {
+    if (!p.thumbEl) continue;
+    const has = S.files.has(S.api.fileName(p));
+    const dot = p.thumbEl.querySelector('.dot');
+    if (has && !dot) p.thumbEl.append(h('span', { class: 'dot', title: 'Hat Kommentare' }));
+    if (!has && dot) dot.remove();
+  }
+}
+function step(d) {
+  if (!S.photos.length) return;
+  selectPhoto((S.index + d + S.photos.length) % S.photos.length);
+}
+function selectPhoto(i) {
+  S.index = i;
+  const p = S.photos[i];
+  S.photos.forEach((q, j) => q.thumbEl && q.thumbEl.classList.toggle('sel', j === i));
+  if (p.thumbEl) p.thumbEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  UI.count.textContent = (i + 1) + ' / ' + S.photos.length;
+  UI.fname.textContent = p.name;
+  UI.prev.hidden = UI.next.hidden = S.photos.length < 2;
+  showPhoto(p);
+  S.replyTo = null;
+  loadComments(false);
+}
+
+/* ---------- Bildansicht mit Zoom ---------- */
+const V = { photo: null, s: 1, tx: 0, ty: 0, fitW: 0, fitH: 0, natW: 0, natH: 0, previewW: Infinity, orig: 'none', pointers: new Map(), last: null, pinch: null, swipeX: null };
+
+function initViewer() {
+  const st = UI.stage;
+  st.addEventListener('wheel', e => {
+    if (!V.photo) return;
+    e.preventDefault();
+    const r = st.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+  }, { passive: false });
+  st.addEventListener('dblclick', e => {
+    const r = st.getBoundingClientRect();
+    if (V.s > 1.01) fitView(); else zoomTo(V.natW / V.fitW, e.clientX - r.left, e.clientY - r.top);
+  });
+  st.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    st.setPointerCapture(e.pointerId);
+    V.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (V.pointers.size === 1) { V.swipeX = e.clientX; st.classList.add('dragging'); }
+    if (V.pointers.size === 2) V.pinch = pinchInfo();
+  });
+  st.addEventListener('pointermove', e => {
+    if (!V.pointers.has(e.pointerId)) return;
+    const prev = V.pointers.get(e.pointerId);
+    V.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (V.pointers.size === 2 && V.pinch) {
+      const now = pinchInfo(); const r = st.getBoundingClientRect();
+      V.tx += now.mx - V.pinch.mx; V.ty += now.my - V.pinch.my;
+      zoomAt(now.mx - r.left, now.my - r.top, now.d / V.pinch.d);
+      V.pinch = now;
+    } else if (V.pointers.size === 1 && V.s > 1.001) {
+      V.tx += e.clientX - prev.x; V.ty += e.clientY - prev.y;
+      clampPan(); apply();
+    }
+  });
+  const end = e => {
+    if (!V.pointers.has(e.pointerId)) return;
+    if (V.pointers.size === 1 && V.s <= 1.001 && V.swipeX != null) {
+      const dx = e.clientX - V.swipeX;
+      if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1);
+    }
+    V.pointers.delete(e.pointerId);
+    V.pinch = V.pointers.size === 2 ? pinchInfo() : null;
+    if (!V.pointers.size) { st.classList.remove('dragging'); V.swipeX = null; }
+    else V.swipeX = null;
+  };
+  st.addEventListener('pointerup', end);
+  st.addEventListener('pointercancel', end);
+  new ResizeObserver(() => { if (V.photo && V.natW) layoutFit(); }).observe(st);
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('textarea,input')) return;
+    if (e.key === 'ArrowRight') step(1);
+    else if (e.key === 'ArrowLeft') step(-1);
+    else if (e.key === '+' || e.key === '=') zoomCenter(1.5);
+    else if (e.key === '-') zoomCenter(1 / 1.5);
+    else if (e.key === '0') fitView();
+    else if (e.key === '1') oneToOne();
+    else return;
+    e.preventDefault();
+  });
+}
+function pinchInfo() {
+  const [a, b] = [...V.pointers.values()];
+  return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+}
+function showStageMessage(text) {
+  V.photo = null;
+  UI.img.hidden = true; UI.img.removeAttribute('src');
+  UI.stageMsg.textContent = text; UI.stageMsg.hidden = false;
+  UI.pill.hidden = true; UI.zoom.textContent = '';
+  UI.count.textContent = ''; UI.fname.textContent = '';
+  UI.prev.hidden = UI.next.hidden = true;
+}
+async function showPhoto(p) {
+  V.photo = p; V.orig = 'none'; V.previewW = Infinity;
+  V.natW = p.w || 0; V.natH = p.h || 0;
+  UI.img.hidden = true;
+  UI.stageMsg.textContent = 'Lädt …'; UI.stageMsg.hidden = false;
+  UI.pill.hidden = true;
+  let url;
+  try { url = await S.api.previewUrl(p); } catch (e) { if (V.photo === p) UI.stageMsg.textContent = explain(e); return; }
+  if (V.photo !== p) return;
+  const im = new Image();
+  im.onload = () => {
+    if (V.photo !== p) return;
+    V.previewW = im.naturalWidth;
+    if (!V.natW) { V.natW = im.naturalWidth; V.natH = im.naturalHeight; }
+    UI.img.src = url;
+    UI.img.hidden = false; UI.stageMsg.hidden = true;
+    layoutFit();
+  };
+  im.onerror = () => { if (V.photo === p) UI.stageMsg.textContent = 'Das Bild konnte nicht geladen werden.'; };
+  im.src = url;
+}
+function layoutFit() {
+  const r = UI.stage.getBoundingClientRect();
+  const k = Math.min(r.width / V.natW, r.height / V.natH);
+  V.fitW = V.natW * k; V.fitH = V.natH * k;
+  UI.img.style.width = V.fitW + 'px'; UI.img.style.height = V.fitH + 'px';
+  V.s = 1; center(); apply();
+}
+function center() {
+  const r = UI.stage.getBoundingClientRect();
+  V.tx = (r.width - V.fitW * V.s) / 2; V.ty = (r.height - V.fitH * V.s) / 2;
+}
+function clampPan() {
+  const r = UI.stage.getBoundingClientRect();
+  const w = V.fitW * V.s, hh = V.fitH * V.s;
+  V.tx = w <= r.width ? (r.width - w) / 2 : Math.min(0, Math.max(r.width - w, V.tx));
+  V.ty = hh <= r.height ? (r.height - hh) / 2 : Math.min(0, Math.max(r.height - hh, V.ty));
+}
+function maxScale() { return Math.max(2, (V.natW / V.fitW) * 2); }
+function zoomAt(px, py, f) {
+  if (!V.photo || !V.fitW) return;
+  zoomTo(V.s * f, px, py);
+}
+function zoomTo(ns, px, py) {
+  if (!V.photo || !V.fitW) return;
+  ns = Math.min(maxScale(), Math.max(1, ns));
+  V.tx = px - (px - V.tx) * (ns / V.s);
+  V.ty = py - (py - V.ty) * (ns / V.s);
+  V.s = ns;
+  clampPan(); apply();
+}
+function zoomCenter(f) { const r = UI.stage.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, f); }
+function fitView() { if (!V.photo || !V.fitW) return; V.s = 1; center(); apply(); }
+function oneToOne() { const r = UI.stage.getBoundingClientRect(); if (V.fitW) zoomTo(V.natW / V.fitW, r.width / 2, r.height / 2); }
+function apply() {
+  UI.img.style.transform = 'translate(' + V.tx + 'px,' + V.ty + 'px) scale(' + V.s + ')';
+  UI.zoom.textContent = V.natW ? Math.round(V.s * V.fitW / V.natW * 100) + ' %' : '';
+  maybeLoadOriginal();
+}
+async function maybeLoadOriginal() {
+  const p = V.photo;
+  if (!p || V.orig !== 'none' || V.s * V.fitW <= V.previewW * 1.05) return;
+  V.orig = 'loading';
+  UI.pill.textContent = 'Original wird geladen …'; UI.pill.hidden = false;
+  try {
+    const url = await S.api.originalUrl(p);
+    if (V.photo !== p) return;
+    const im = new Image();
+    im.onload = () => { if (V.photo !== p) return; UI.img.src = url; V.orig = 'done'; UI.pill.hidden = true; };
+    im.onerror = () => { if (V.photo !== p) return; V.orig = 'failed'; UI.pill.textContent = 'Original nicht verfügbar'; setTimeout(() => { UI.pill.hidden = true; }, 2500); };
+    im.src = url;
+  } catch (e) {
+    if (V.photo === p) { V.orig = 'failed'; UI.pill.hidden = true; }
+  }
+}
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (UI.viewer.requestFullscreen) UI.viewer.requestFullscreen().catch(() => {});
+}
+
+/* ---------- Kommentare ---------- */
+function clearComments() {
+  S.comments = null; S.commentsFor = null; S.eTag = null; S.replyTo = null;
+  UI.chSub.textContent = '';
+  UI.clist.replaceChildren(h('p', { class: 'hint', text: 'Wähle ein Bild aus.' }));
+  renderReplying();
+}
+async function loadComments(manual) {
+  const p = S.photos[S.index];
+  if (!p) return;
+  const token = ++S.loadToken;
+  if (S.commentsFor !== p.id) { S.comments = null; S.commentsFor = null; S.eTag = null; }
+  UI.chSub.textContent = p.name;
+  if (!manual) UI.clist.replaceChildren(h('p', { class: 'hint', text: 'Kommentare werden geladen …' }));
+  renderReplying();
+  try {
+    const { data, eTag } = await S.api.readComments(p);
+    if (token !== S.loadToken) return;
+    S.comments = data; S.eTag = eTag; S.commentsFor = p.id;
+    renderComments();
+  } catch (e) {
+    if (token !== S.loadToken) return;
+    UI.clist.replaceChildren(h('p', { class: 'err', text: 'Kommentare konnten nicht geladen werden: ' + explain(e) }));
+  }
+}
+function pollComments() {
+  if (document.visibilityState !== 'visible' || S.busy || !S.photos[S.index]) return;
+  loadComments(true);
+  S.api.commentFiles().then(f => { S.files = f; refreshBadges(); }).catch(() => {});
+}
+function renderComments() {
+  const all = (S.comments && S.comments.comments) || [];
+  const byTs = (a, b) => a.ts - b.ts;
+  const ids = new Set(all.map(c => c.id));
+  const live = all.filter(c => !c.deleted);
+  const roots = all.filter(c => (!c.parent || !ids.has(c.parent)) &&
+    (!c.deleted || live.some(x => x.parent === c.id))).sort(byTs);
+  const shownReplies = all.filter(c => c.parent && ids.has(c.parent) && !c.deleted);
+  if (!roots.length) {
+    UI.clist.replaceChildren(h('p', { class: 'hint', text: 'Noch keine Kommentare. Schreib den ersten!' }));
+    return;
+  }
+  UI.clist.replaceChildren(...roots.map(r => {
+    const replies = shownReplies.filter(c => c.parent === r.id).sort(byTs);
+    return h('div', { class: 'thread' }, commentEl(r, r),
+      replies.length ? h('div', { class: 'replies' }, replies.map(c => commentEl(c, r))) : null);
+  }));
+}
+function commentEl(c, root) {
+  const mine = c.author && c.author.id === S.api.me.id;
+  const acts = h('div', { class: 'acts' });
+  if (!c.deleted) {
+    acts.append(h('button', { class: 'linkbtn', onclick: () => { S.replyTo = { id: root.id, name: c.author.name }; renderReplying(); UI.text.focus(); } }, 'Antworten'));
+    if (mine || S.api.isOwner) {
+      const del = h('button', { class: 'linkbtn' }, 'Löschen');
+      let armed = null;
+      del.addEventListener('click', () => {
+        if (!armed) {
+          del.textContent = 'Wirklich löschen?'; del.classList.add('warn');
+          armed = setTimeout(() => { armed = null; del.textContent = 'Löschen'; del.classList.remove('warn'); }, 4000);
+        } else { clearTimeout(armed); deleteComment(c.id); }
+      });
+      acts.append(del);
+    }
+  }
+  return h('div', { class: 'comment' },
+    h('div', { class: 'meta' }, h('span', { class: 'author', text: (c.author && c.author.name) || 'Unbekannt' }),
+      h('span', { class: 'time', text: fmtTime.format(new Date(c.ts)) })),
+    c.deleted ? h('p', { class: 'text deleted', text: 'Kommentar gelöscht' }) : h('p', { class: 'text', text: c.text }),
+    acts);
+}
+function renderReplying() {
+  if (!S.replyTo) { UI.replying.hidden = true; UI.text.placeholder = 'Kommentar schreiben …'; return; }
+  UI.replying.replaceChildren(h('span', { text: 'Antwort an ' + S.replyTo.name }),
+    h('button', { class: 'linkbtn', onclick: () => { S.replyTo = null; renderReplying(); } }, 'Abbrechen'));
+  UI.replying.hidden = false;
+  UI.text.placeholder = 'Antwort schreiben …';
+}
+async function mutate(p, fn) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, eTag } = attempt === 0 && S.commentsFor === p.id
+      ? { data: S.comments, eTag: S.eTag } : await S.api.readComments(p);
+    const next = fn(data ? JSON.parse(JSON.stringify(data)) : { v: 1, photoId: p.id, photoName: p.name, comments: [] });
+    try {
+      await S.api.writeComments(p, next, eTag);
+      return next;
+    } catch (e) {
+      if (e.status === 412 || e.status === 409) { await sleep(300 + Math.random() * 700); continue; }
+      throw e;
+    }
+  }
+  throw userError('Gerade schreiben mehrere Leute gleichzeitig. Bitte noch einmal versuchen.');
+}
+async function commit(p, fn) {
+  S.busy = true; UI.send.disabled = true; UI.cerr.hidden = true;
+  try {
+    await mutate(p, fn);
+    S.files.add(S.api.fileName(p)); refreshBadges();
+    if (S.photos[S.index] === p) await loadComments(true);
+    return true;
+  } catch (e) {
+    UI.cerr.textContent = 'Nicht gespeichert: ' + explain(e); UI.cerr.hidden = false;
+    return false;
+  } finally {
+    S.busy = false; UI.send.disabled = !UI.text.value.trim();
+  }
+}
+async function sendComment() {
+  const p = S.photos[S.index];
+  const text = UI.text.value.trim();
+  if (!p || !text || S.busy) return;
+  const c = { id: uid(), parent: S.replyTo ? S.replyTo.id : null, author: { id: S.api.me.id, name: S.api.me.name }, text, ts: Date.now() };
+  UI.send.textContent = 'Sendet …';
+  const ok = await commit(p, d => { d.comments.push(c); d.photoName = p.name; return d; });
+  UI.send.textContent = 'Senden';
+  if (ok) { UI.text.value = ''; UI.send.disabled = true; S.replyTo = null; renderReplying(); }
+}
+async function deleteComment(id) {
+  const p = S.photos[S.index];
+  if (!p || S.busy) return;
+  await commit(p, d => {
+    const c = d.comments.find(x => x.id === id);
+    if (c) { c.deleted = true; c.text = ''; }
+    return d;
+  });
+}
+
+/* ============================================================
+   Start
+   ============================================================ */
+document.getElementById('logoutBtn').addEventListener('click', logout);
+document.getElementById('newGalleryBtn').addEventListener('click', () => { location.href = BASE; });
+window.addEventListener('hashchange', () => location.reload());
+
+async function boot() {
+  if (location.hash === '#demo') {
+    return startGallery(new DemoApi(), { name: 'Toskana 2026' }, true);
+  }
+  const cfg = window.GALERIE_CONFIG;
+  if (!cfg || !cfg.clientId || /HIER/i.test(cfg.clientId)) {
+    return showMessage('Noch nicht fertig eingerichtet',
+      'In der Datei config.js fehlt die Client-ID aus Azure (Teil 3 der Anleitung). Solange sie fehlt, kannst du dir die Demo ansehen.',
+      h('a', { href: '#demo' }, 'Demo ansehen'));
+  }
+  if (!window.msal) {
+    return showMessage('Anmeldung nicht verfügbar',
+      'Die Anmelde-Bibliothek von Microsoft konnte nicht geladen werden. Prüfe deine Internetverbindung, schalte ggf. einen Werbeblocker für diese Seite aus und lade neu.');
+  }
+  try {
+    msalApp = new msal.PublicClientApplication({
+      auth: { clientId: cfg.clientId.trim(), authority: 'https://login.microsoftonline.com/consumers', redirectUri: BASE, postLogoutRedirectUri: BASE, navigateToLoginRequestUrl: false },
+      cache: { cacheLocation: 'localStorage' }
+    });
+    await msalApp.initialize();
+    const res = await msalApp.handleRedirectPromise();
+    if (res && res.account) msalApp.setActiveAccount(res.account);
+  } catch (e) {
+    restoreHash();
+    return showMessage('Anmeldung fehlgeschlagen', (e.errorCode ? e.errorCode + ': ' : '') + (e.errorMessage || e.message || String(e)),
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: login }, 'Noch einmal anmelden')));
+  }
+  restoreHash();
+  const acct = msalApp.getActiveAccount() || msalApp.getAllAccounts()[0];
+  if (acct) msalApp.setActiveAccount(acct);
+  const g = parseGalleryHash();
+  if (location.hash && location.hash.startsWith('#g=') && !g) {
+    return showMessage('Ungültiger Galerie-Link', 'Der Link ist unvollständig oder beschädigt. Bitte kopiere ihn noch einmal vollständig.');
+  }
+  if (!acct) return showLogin(g);
+  const api = new GraphApi();
+  if (g) return startGallery(api, g, false);
+  try {
+    const me = await api.call('/me');
+    api.me = { id: me.id, name: me.displayName || 'Unbekannt' };
+  } catch (e) {}
+  showSetup(api);
+}
+
+boot();
+</script>
+</body>
+</html>
